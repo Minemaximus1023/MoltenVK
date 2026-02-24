@@ -21,23 +21,8 @@ jobs:
         upload_artifacts: [ true ]
         select_xcode: [ false ]
         xcode: [ "26.2" ]
-        private_api: [ false ]
-
-        include:
-          # macOS build with private APIs enabled.
-          - os: "macos-latest"
-            platform: "macos"
-            upload_artifacts: true
-            select_xcode: false
-            xcode: [ "26.2" ]
-            private_api: true
-          # Legacy build. Up to 3 versions behind latest (or beta).
-          - os: "macos-14"
-            xcode: "15.0.1"
-            platform: "macos"
-            upload_artifacts: false
-            select_xcode: true
-            private_api: false
+        private_api: [ true ]
+        
       fail-fast: false
 
     name: MoltenVK (Xcode ${{ matrix.xcode }} - ${{ matrix.platform }}${{ matrix.private_api && '-privateapi' || '' }})
