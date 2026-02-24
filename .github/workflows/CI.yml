@@ -62,8 +62,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            MoltenVK/External/build
-            !MoltenVK/External/build/Intermediates
+            /External/build
+            /External/build/Intermediates
           key: ${{ runner.os }}-${{ steps.prep.outputs.XCODE_VERSION }}-${{ matrix.platform }}-${{ hashFiles('fetchDependencies','ExternalRevisions/**','ExternalDependencies.xcodeproj/**','Scripts/**') }}
 
       - name: Fetch Dependencies (Use Built Cache)
