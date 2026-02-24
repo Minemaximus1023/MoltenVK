@@ -17,10 +17,6 @@ jobs:
     name: 'MoltenVK (Xcode ${{ matrix.xcode }} - ${{ matrix.platform }})'
     
     runs-on: ${{ matrix.os }}
-
-    defaults:
-      run:
-        working-directory: ./MoltenVK
     
     env:
       XCODE_DEV_PATH: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
