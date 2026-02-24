@@ -21,7 +21,6 @@ jobs:
         upload_artifacts: [ true ]
         select_xcode: [ false ]
         xcode: [ "26.4" ]
-        private_api: [ true ]
         
       fail-fast: false
 
