@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ "macos-latest" ] # Changed to latest for compatibility, adjust as needed
+        platform: [ "macos", "ios" ]
+        upload_artifacts: [ true ]
+        select_xcode: [ false ]
+        xcode: [ "15.2" ] # Added to matrix since it's used in your env/name
+
+      fail-fast: false
+
+    name: 'MoltenVK (Xcode ${{ matrix.xcode }} - ${{ matrix.platform }})'
+    
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        working-directory: ./MoltenVK
+    
+    env:
+      XCODE_DEV_PATH: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          path: '.'
+
+      - name: Apply patches
+        shell: bash
+        run: |
+          # Check if any .patch files exist in the root directory
+          if ls ../*.patch 1> /dev/null 2>&1; then
+            echo "Found patches. Applying..."
+            git apply -v ../*.patch
+          else
+            echo "No .patch files found in the root. Skipping."
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: List available Xcode versions
+        run: ls /Applications | grep Xcode
+
+      - name: Select Xcode version
+        if: matrix.select_xcode == true
+        run: sudo xcode-select -switch "${XCODE_DEV_PATH}"
+
+      - name: Prep
+        id: prep
+        run: |
+          echo "Get Xcode version info"
+          XCODE_VERSION="$(xcodebuild -version)"
+          echo "${XCODE_VERSION}"
+          XCODE_VERSION="$(echo "${XCODE_VERSION}" | tr '\t\r\n ' '_')"
+          echo "XCODE_VERSION=${XCODE_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Cache Dependencies
+        id: cache-dependencies
+        if: success() && !(github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
+        uses: actions/cache@v3
+        with:
+          path: |
+            MoltenVK/External/build
+            !MoltenVK/External/build/Intermediates
+          # Added patches to the cache key so changes in patches trigger a rebuild
+          key: ${{ runner.os }}-${{ steps.prep.outputs.XCODE_VERSION }}-${{ matrix.platform }}-${{ hashFiles('fetchDependencies','ExternalRevisions/**','ExternalDependencies.xcodeproj/**','Scripts/**', '../**/*.patch') }}
+
+      - name: Fetch Dependencies (Use Built Cache)
+        if: steps.cache-dependencies.outputs.cache-hit == 'true'
+        run: ./fetchDependencies -v --none
+
+      - name: Fetch Dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: ./fetchDependencies -v --${{ matrix.platform }}
+
+      - name: Output Dependency Build Logs on Failure
+        if: failure()
+        run: [ -f "dependenciesbuild.log" ] && cat "dependenciesbuild.log" || echo "No log found"
+
+      - name: Build MoltenVK
+        run: make ${{ matrix.platform }}
+
+      - name: Output MoltenVK Build Logs on Failure
+        if: failure()
+        run: |
+          if [ -f "xcodebuild.log" ]; then
+            cat "xcodebuild.log"
+          fi
+
+      - name: Tar Artifacts
+        if: success() && matrix.upload_artifacts == true
+        run: |
+          rm -rf Package/Release/MoltenVKShaderConverter
+          tar -C Package -cvf "MoltenVK-${{ matrix.platform }}.tar" Release/
+
+      - name: Upload Artifacts
+        if: success() && matrix.upload_artifacts == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: "MoltenVK-${{ matrix.platform }}"
+          path: "MoltenVK/MoltenVK-${{ matrix.platform }}.tar"
