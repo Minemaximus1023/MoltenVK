@@ -78,7 +78,7 @@ jobs:
 
       - name: Build MoltenVK
         run: |
-          make ${BUILD_ARGUMENTS}
+          make ${{ matrix.platform }}
 
       - name: Output MoltenVK Build Logs on Failure
         if: failure()
