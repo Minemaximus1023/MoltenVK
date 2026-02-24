@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ "macos-26" ]
-        platform: [ "macos", "ios" ]
+        platform: [ "macos" ]
         upload_artifacts: [ true ]
         select_xcode: [ false ]
 
