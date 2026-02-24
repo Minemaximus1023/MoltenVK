@@ -20,7 +20,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./MoltenVK
+        working-directory: ../MoltenVK
     
     env:
       XCODE_DEV_PATH: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-          path: '.'
+          path: '..'
 
       - name: Apply patches
         run: |
