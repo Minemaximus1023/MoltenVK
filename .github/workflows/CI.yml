@@ -26,15 +26,10 @@ jobs:
       XCODE_DEV_PATH: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
 
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-        with:
-          submodules: false
-          path: '.'
 
-      - name: Apply patches
-        run: |
-          git apply -v ../*.patch
-
+      # Python 3.12 removed distutils, which is used by glslang::update_glslang_sources.py called from fetchDependencies
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -62,8 +57,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            /External/build
-            /External/build/Intermediates
+            External/build
+            !External/build/Intermediates
           key: ${{ runner.os }}-${{ steps.prep.outputs.XCODE_VERSION }}-${{ matrix.platform }}-${{ hashFiles('fetchDependencies','ExternalRevisions/**','ExternalDependencies.xcodeproj/**','Scripts/**') }}
 
       - name: Fetch Dependencies (Use Built Cache)
@@ -82,7 +77,7 @@ jobs:
 
       - name: Build MoltenVK
         run: |
-          make ${{ matrix.platform }}
+          make ${BUILD_ARGUMENTS}
 
       - name: Output MoltenVK Build Logs on Failure
         if: failure()
@@ -93,13 +88,65 @@ jobs:
 
       - name: Tar Artifacts
         if: success() && matrix.upload_artifacts == true
+        # See: https://github.com/actions/upload-artifact#maintaining-file-permissions-and-case-sensitive-files
+        # To reduce artifact size, don't include any stand-alone shader converter binaries.
         run: |
           rm -rf Package/Release/MoltenVKShaderConverter
-          tar -C Package -s/Release/MoltenVK/ -cvf "MoltenVK-${{ matrix.platform }}.tar" Release/
+          tar -C Package -s/Release/MoltenVK/ -cvf "MoltenVK-${ARTIFACT_TYPE}.tar" Release/
 
       - name: Upload Artifacts
         if: success() && matrix.upload_artifacts == true
         uses: actions/upload-artifact@v4
         with:
-          name: "MoltenVK-${{ matrix.platform }}"
-          path: "MoltenVK/MoltenVK-${{ matrix.platform }}.tar"
+          name: "MoltenVK-${{ env.ARTIFACT_TYPE }}"
+          path: "MoltenVK-${{ env.ARTIFACT_TYPE }}.tar"
+
+  build_cmake:
+    strategy:
+      matrix:
+        # Primary build on latest macOS and its default Xcode version
+        os: [ "macos-latest" ]
+        # platform: [ "all", "macos", "ios" ]
+        config: [Debug, Release]
+      fail-fast: false
+
+    name: 'MoltenVK (Cmake - ${{ matrix.config }})'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install ccache
+          echo 'CACHE_PATH=~/Library/Caches/ccache' >> "$GITHUB_ENV"
+
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v2.0.0
+        id: cpu-cores
+
+      - name: Cache Build
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CACHE_PATH }}
+          key: ${{ runner.os }}-${{ matrix.config }}-cache
+
+      - name: Prepare ccache
+        run: |
+          ccache --max-size=1.0G
+          ccache -V && ccache --show-config
+          ccache --show-stats && ccache --zero-stats
+
+      - name: Configure
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+
+      - name: Build
+        run: |
+          cmake --build build -j ${{ steps.cpu-cores.outputs.count }}
+          ccache --show-stats
