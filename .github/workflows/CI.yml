@@ -11,7 +11,7 @@ jobs:
         platform: [ "macos", "ios" ]
         upload_artifacts: [ true ]
         select_xcode: [ false ]
-        xcode: [ "15.2" ] # Added to matrix since it's used in your env/name
+        xcode: [ "26.2" ] # Added to matrix since it's used in your env/name
 
       fail-fast: false
 
