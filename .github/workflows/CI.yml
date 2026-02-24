@@ -20,6 +20,7 @@ jobs:
         platform: [ "all", "macos", "ios" ]
         upload_artifacts: [ true ]
         select_xcode: [ false ]
+        xcode: [ "26.2" ]
         private_api: [ false ]
 
         include:
@@ -28,6 +29,7 @@ jobs:
             platform: "macos"
             upload_artifacts: true
             select_xcode: false
+            xcode: [ "26.2" ]
             private_api: true
           # Legacy build. Up to 3 versions behind latest (or beta).
           - os: "macos-14"
