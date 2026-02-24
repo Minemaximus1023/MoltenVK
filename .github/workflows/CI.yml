@@ -17,10 +17,6 @@ jobs:
     name: 'MoltenVK (Xcode ${{ matrix.xcode }} - ${{ matrix.platform }})'
     
     runs-on: ${{ matrix.os }}
-
-    defaults:
-      run:
-        working-directory: ./MoltenVK
     
     env:
       XCODE_DEV_PATH: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
@@ -28,6 +24,11 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
+           
+      - name: Apply patches
+        run: |
+          git apply -v ./*.patch
+
 
       # Python 3.12 removed distutils, which is used by glslang::update_glslang_sources.py called from fetchDependencies
       - uses: actions/setup-python@v5
